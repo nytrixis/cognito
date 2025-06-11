@@ -153,6 +153,67 @@ add_action('rest_api_init', function () {
     ]);
 });
 
+add_action('rest_api_init', function() {
+  register_rest_route('cognito/v1', '/ai_suggest', [
+    'methods' => 'POST',
+    'callback' => 'cognito_ai_suggest_callback',
+    'permission_callback' => '__return_true'
+  ]);
+});
+
+function cognito_ai_suggest_callback(WP_REST_Request $request) {
+    $content = $request->get_param('content');
+    if (!$content) {
+        return new WP_Error('no_content', 'No content provided', ['status' => 400]);
+    }
+    $paragraphs = preg_split('/\n+/', strip_tags($content));
+    $paragraphs = array_filter(array_map('trim', $paragraphs));
+
+    $suggestions = [];
+    foreach ($paragraphs as $i => $p) {
+        // Compose prompt for OpenAI
+        $prompt = "This is a paragraph from a blog post:\n\n\"$p\"\n\nSuggest how to make it easier to understand for a general audience. Be specific and concise.";
+        $response = cognito_call_openai($prompt);
+        $suggestions[] = [
+            'paragraph' => $i + 1,
+            'suggestion' => $response ?: 'No suggestion available.'
+        ];
+    }
+
+    return ['status' => 'ok', 'suggestions' => $suggestions];
+}
+
+function cognito_call_openai($prompt) {
+    $api_key = defined('COGNITO_OPENAI_API_KEY') ? COGNITO_OPENAI_API_KEY : '';
+    if (!$api_key) return null;
+
+    $data = [
+        'model' => 'llama3-8b-8192',
+        'messages' => [
+            ['role' => 'system', 'content' => 'You are a helpful writing assistant.'],
+            ['role' => 'user', 'content' => $prompt]
+        ],
+        'max_tokens' => 120,
+        'temperature' => 0.7,
+    ];
+
+    $args = [
+        'headers' => [
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'Bearer ' . $api_key,
+        ],
+        'body' => json_encode($data),
+        'timeout' => 30,
+    ];
+
+    $res = wp_remote_post('https://api.groq.com/v1/chat/completions', $args);
+    error_log(print_r($res, true)); // Add this line
+    if (is_wp_error($res)) return null;
+    $body = json_decode(wp_remote_retrieve_body($res), true);
+    error_log(print_r($body, true)); // Add this line
+    return $body['choices'][0]['message']['content'] ?? null;
+}
+
 function cognito_get_heatmap_events(WP_REST_Request $request) {
     global $wpdb;
     $post_id = intval($request->get_param('post_id'));
