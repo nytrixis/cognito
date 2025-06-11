@@ -90,8 +90,6 @@ function cognito_handle_event_data(WP_REST_Request $request) {
     global $wpdb;
 
     $params = $request->get_json_params();
-
-    // Basic validation
     if (
         empty($params['session_id']) ||
         empty($params['post_id']) ||
@@ -100,6 +98,9 @@ function cognito_handle_event_data(WP_REST_Request $request) {
     ) {
         return new WP_Error('invalid_data', 'Missing or invalid data', array('status' => 400));
     }
+
+    $user_id = get_current_user_id();
+    $is_anonymous = ($user_id === 0) ? 1 : 0;
 
     $table_sessions = $wpdb->prefix . 'cognito_sessions';
     $table_events = $wpdb->prefix . 'cognito_events';
@@ -117,6 +118,7 @@ function cognito_handle_event_data(WP_REST_Request $request) {
             'page_url'   => esc_url_raw($params['page_url']),
             'start_time' => current_time('mysql'),
             'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
+            'is_anonymous'=> $is_anonymous
         ));
     }
 

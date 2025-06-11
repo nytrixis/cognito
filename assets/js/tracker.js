@@ -1,5 +1,4 @@
 (function () {
-    // Generate a random session ID (UUID v4 style, simple version)
     function generateSessionId() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -38,19 +37,15 @@
         });
     });
 
-    // Track mouse movement
     window.addEventListener('mousemove', function () {
         mouseMoves++;
         lastMouseMove = Date.now();
     });
 
-    // Track time on page and idle
     function sendEngagementData() {
         var now = Date.now();
         var timeOnPage = Math.round((now - startTime) / 1000);
-        var idle = (now - lastMouseMove > 10000); // 10s idle threshold
-
-        // Always send at least one event per batch
+        var idle = (now - lastMouseMove > 10000); 
         if (events.length === 0) {
             events.push({ type: 'heartbeat', data: { timeOnPage: timeOnPage, idle: idle, mouseMoves: mouseMoves } });
         }
@@ -59,7 +54,7 @@
             session_id: window.cognitoSessionId,
             post_id: postId,
             page_url: window.location.href,
-            events: events.splice(0, events.length) // clear events after sending
+            events: events.splice(0, events.length)
         };
 
         fetch('/wordpress/wp-json/cognito/v1/track', {
@@ -69,15 +64,12 @@
         }).then(function (res) {
             return res.json();
         }).then(function (data) {
-            // Optionally log: console.log('Cognito engagement sent:', data);
+            console.log('Cognito engagement sent:', data);
         }).catch(function (err) {
-            // Optionally log: console.error('Cognito tracker error:', err);
+            console.error('Cognito tracker error:', err);
         });
     }
 
-    // Send data every 10 seconds
     setInterval(sendEngagementData, 10000);
-
-    // Also send data when user leaves the page
     window.addEventListener('beforeunload', sendEngagementData);
 })();
