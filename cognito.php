@@ -21,6 +21,7 @@ function cognito_activate() {
         start_time DATETIME,
         end_time DATETIME,
         user_agent TEXT,
+        is_anonymous TINYINT(1) DEFAULT 1, 
         PRIMARY KEY (session_id)
     ) $charset_collate;";
 
