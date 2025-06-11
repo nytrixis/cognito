@@ -144,7 +144,14 @@ add_action('rest_api_init', function () {
 function cognito_get_events(WP_REST_Request $request) {
     global $wpdb;
     $table_events = $wpdb->prefix . 'cognito_events';
-    $results = $wpdb->get_results("SELECT * FROM $table_events ORDER BY event_id DESC LIMIT 100", ARRAY_A);
+    $table_sessions = $wpdb->prefix . 'cognito_sessions';
+    $results = $wpdb->get_results("
+        SELECT e.*, s.post_id
+        FROM $table_events e
+        LEFT JOIN $table_sessions s ON e.session_id = s.session_id
+        ORDER BY e.event_id DESC
+        LIMIT 100
+    ", ARRAY_A);
     foreach ($results as &$row) {
         $row['data'] = json_decode($row['data'], true);
     }
@@ -199,6 +206,15 @@ function cognito_handle_event_data(WP_REST_Request $request) {
             'timestamp'  => current_time('mysql'),
             'data'       => wp_json_encode($event['data']),
         ));
+    }
+
+    foreach ($results as &$row) {
+        $row['data'] = json_decode($row['data'], true);
+        if (!empty($row['post_id'])) {
+            $row['post_title'] = get_the_title($row['post_id']);
+        } else {
+            $row['post_title'] = 'Unknown';
+        }
     }
 
     return array('success' => true);

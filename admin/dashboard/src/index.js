@@ -70,6 +70,66 @@ const App = () => {
     return () => chartInstance.destroy();
   }, [events]);
 
+  const eventsByHour = {};
+  events.forEach(ev => {
+    if (!ev.timestamp) return;
+    const localDate = new Date(ev.timestamp.replace(' ', 'T') + 'Z');
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const hour = String(localDate.getHours()).padStart(2, '0');
+    const hourLabel = `${year}-${month}-${day} ${hour}:00`;
+    eventsByHour[hourLabel] = (eventsByHour[hourLabel] || 0) + 1;
+  });
+
+  const lineLabels = Object.keys(eventsByHour).sort();
+  const lineData = lineLabels.map(label => eventsByHour[label]);
+  const lineChartRef = useRef(null);
+
+  const postEngagement = {};
+  events.forEach(ev => {
+    const post = ev.post_title || ev.post_id || 'Unknown';
+    postEngagement[post] = (postEngagement[post] || 0) + 1;
+  });
+  const topPosts = Object.entries(postEngagement)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  useEffect(() => {
+    if (!lineChartRef.current) return;
+    const chartInstance = new Chart(lineChartRef.current, {
+      type: 'line',
+      data: {
+        labels: lineLabels,
+        datasets: [{
+          label: 'Events per Hour',
+          data: lineData,
+          borderColor: 'rgba(34,211,238,0.9)',
+          backgroundColor: 'rgba(34,211,238,0.2)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 3,
+          pointBackgroundColor: 'rgba(59,130,246,0.8)'
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: '#e0e7ef',
+              font: { family: 'Montserrat, Times New Roman, Times, serif' }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#e0e7ef' }, grid: { color: '#334155' } },
+          y: { ticks: { color: '#e0e7ef' }, grid: { color: '#334155' } }
+        }
+      }
+    });
+    return () => chartInstance.destroy();
+  }, [events]);
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-md font-mont">
@@ -93,10 +153,27 @@ const App = () => {
               <span className="text-blue-200 text-sm mt-1">Avg. Time on Page</span>
             </div>
           </div>
-          <div className="w-full flex justify-center mb-8">
-            <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-gray-700 flex flex-col items-center">
+          <div className="w-full flex flex-col lg:flex-row justify-center gap-8 mb-8 items-stretch">
+            {/* Doughnut Chart */}
+            <div className="flex-1 bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-gray-700 flex flex-col items-center h-full">
               <span className="text-lg font-semibold text-cyan-200 mb-2">Event Type Breakdown</span>
               <canvas ref={chartRef} width={220} height={220}></canvas>
+            </div>
+            {/* Line Chart */}
+            <div className="flex-1 bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-gray-700 flex flex-col items-center h-full">
+              <span className="text-lg font-semibold text-cyan-200 mb-2">Engagement Over Time</span>
+              <canvas ref={lineChartRef} width={400} height={220}></canvas>
+            </div>
+            {/* Most Engaged Posts */}
+            <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-gray-700 mb-8 flex-1 min-w-[250px] flex flex-col items-center h-full">
+              <span className="text-lg font-semibold text-cyan-200 mb-2 block">Most Engaged Posts</span>
+              <ul className="flex-1 flex flex-col justify-center w-full">
+                {topPosts.map(([post, count]) => (
+                  <li key={post} className="text-gray-200">
+                    <span className="font-bold text-cyan-300">{post}</span>: {count} events
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
           <table className="min-w-full bg-white/10 rounded-lg shadow overflow-hidden border border-gray-700">
