@@ -116,19 +116,21 @@
 
     document.querySelectorAll('input, textarea, select').forEach(function(input) {
         input.addEventListener('change', function (e) {
-            events.push({
-                type: 'input_change',
-                data: {
-                    tag: input.tagName,
-                    id: input.id || null,
-                    classes: input.className || null,
-                    name: input.name || null,
-                    type: input.type || null,
-                    value: input.value || null,
-                    checked: input.checked !== undefined ? input.checked : null,
-                    timestamp: Date.now()
-                }
-            });
+            if (input.type !== 'password') {
+                events.push({
+                    type: 'input_change',
+                    data: {
+                        tag: input.tagName,
+                        id: input.id || null,
+                        classes: input.className || null,
+                        name: input.name || null,
+                        type: input.type || null,
+                        value: input.value || null,
+                        checked: input.checked !== undefined ? input.checked : null,
+                        timestamp: Date.now()
+                    }
+                });
+            }
         });
     });
 
