@@ -1,10 +1,14 @@
 module.exports = {
-  content: [
-    "./index.js",
-    "./src/**/*.{js,jsx,ts,tsx}",
-  ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        mont: ['Montserrat', '"Times New Roman"', 'Times', 'serif'],
+      },
+    },
   },
+  content: [
+    "./src/**/*.{js,jsx,ts,tsx}",
+    "./index.js"
+  ],
   plugins: [],
 }

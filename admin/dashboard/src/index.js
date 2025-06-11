@@ -18,30 +18,55 @@ const App = () => {
       });
   }, []);
 
+  const totalEvents = events.length;
+  const sessionIds = new Set(events.map(ev => ev.session_id));
+  const totalSessions = sessionIds.size;
+  const avgTimeOnPage = (() => {
+    const times = events
+      .filter(ev => ev.event_type === 'heartbeat' && ev.data && ev.data.timeOnPage)
+      .map(ev => ev.data.timeOnPage);
+    if (!times.length) return 0;
+    return Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+  })();
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-white/60 to-blue-100/60 backdrop-blur-md rounded-xl shadow-lg p-10">
-      <h1 className="text-4xl font-bold mb-4 text-blue-900 drop-shadow">Cognito Dashboard</h1>
-      <p className="text-lg text-gray-700 mb-8">Your analytics dashboard is ready!</p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-md font-mont">
+      <h1 className="text-4xl font-bold mb-4 mt-4 text-cyan-300 drop-shadow">Cognito Dashboard</h1>
+      <p className="text-lg text-teal-200 mb-8">Your analytics dashboard is ready!</p>
       {loading ? (
-        <div className="text-gray-500">Loading events...</div>
+        <div className="text-gray-400">Loading events...</div>
       ) : (
         <div className="w-full max-w-4xl">
-          <table className="min-w-full bg-white/70 rounded-lg shadow overflow-hidden">
+          <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-cyan-400/40 font-mont">
+              <span className="text-2xl font-bold text-cyan-100 drop-shadow">{totalSessions}</span>
+              <span className="text-cyan-200 text-sm mt-1">Total Sessions</span>
+            </div>
+            <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-teal-400/40 font-mont">
+              <span className="text-2xl font-bold text-teal-100 drop-shadow">{totalEvents}</span>
+              <span className="text-teal-200 text-sm mt-1">Total Events</span>
+            </div>
+            <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-blue-400/40 font-mont">
+              <span className="text-2xl font-bold text-blue-100 drop-shadow">{avgTimeOnPage}s</span>
+              <span className="text-blue-200 text-sm mt-1">Avg. Time on Page</span>
+            </div>
+          </div>
+          <table className="min-w-full bg-white/10 rounded-lg shadow overflow-hidden border border-gray-700">
             <thead>
               <tr>
-                <th className="px-4 py-2 text-left">ID</th>
-                <th className="px-4 py-2 text-left">Type</th>
-                <th className="px-4 py-2 text-left">Timestamp</th>
-                <th className="px-4 py-2 text-left">Data</th>
+                <th className="px-4 py-2 text-left text-cyan-300">ID</th>
+                <th className="px-4 py-2 text-left text-teal-300">Type</th>
+                <th className="px-4 py-2 text-left text-blue-300">Timestamp</th>
+                <th className="px-4 py-2 text-left text-gray-200">Data</th>
               </tr>
             </thead>
             <tbody>
               {events.map(ev => (
-                <tr key={ev.event_id} className="border-b last:border-none">
-                  <td className="px-4 py-2">{ev.event_id}</td>
-                  <td className="px-4 py-2">{ev.event_type}</td>
-                  <td className="px-4 py-2">{ev.timestamp}</td>
-                  <td className="px-4 py-2 text-xs break-all">{JSON.stringify(ev.data)}</td>
+                <tr key={ev.event_id} className="border-b border-gray-800 last:border-none hover:bg-white/5 transition">
+                  <td className="px-4 py-2 text-gray-100">{ev.event_id}</td>
+                  <td className="px-4 py-2 text-teal-200">{ev.event_type}</td>
+                  <td className="px-4 py-2 text-blue-200">{ev.timestamp}</td>
+                  <td className="px-4 py-2 text-xs break-all text-gray-300">{JSON.stringify(ev.data)}</td>
                 </tr>
               ))}
             </tbody>
