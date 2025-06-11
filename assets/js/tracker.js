@@ -42,6 +42,146 @@
         lastMouseMove = Date.now();
     });
 
+    window.addEventListener('click', function (e) {
+        var target = e.target;
+        events.push({
+            type: 'click',
+            data: {
+                tag: target.tagName,
+                id: target.id || null,
+                classes: target.className || null,
+                name: target.name || null,
+                type: target.type || null,
+                text: target.innerText ? target.innerText.substring(0, 100) : null,
+                value: target.value || null,
+                href: target.href || null,
+                timestamp: Date.now()
+            }
+        });
+    });
+
+    document.querySelectorAll('video').forEach(function(video) {
+        video.addEventListener('play', function () {
+            events.push({
+                type: 'video_play',
+                data: {
+                    src: video.currentSrc,
+                    timestamp: Date.now()
+                }
+            });
+        });
+
+        video.addEventListener('pause', function () {
+            events.push({
+                type: 'video_pause',
+                data: {
+                    src: video.currentSrc,
+                    timestamp: Date.now()
+                }
+            });
+        });
+        video.addEventListener('ended', function () {
+            events.push({
+                type: 'video_ended',
+                data: {
+                    src: video.currentSrc,
+                    timestamp: Date.now()
+                }
+            });
+        });
+        video.addEventListener('seeked', function () {
+            events.push({
+                type: 'video_seeked',
+                data: {
+                    src: video.currentSrc,
+                    currentTime: video.currentTime,
+                    timestamp: Date.now()
+                }
+            });
+        });
+    });
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function (e) {
+            events.push({
+                type: 'form_submit',
+                data: {
+                    action: form.action,
+                    id: form.id || null,
+                    classes: form.className || null,
+                    timestamp: Date.now()
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('input, textarea, select').forEach(function(input) {
+        input.addEventListener('change', function (e) {
+            events.push({
+                type: 'input_change',
+                data: {
+                    tag: input.tagName,
+                    id: input.id || null,
+                    classes: input.className || null,
+                    name: input.name || null,
+                    type: input.type || null,
+                    value: input.value || null,
+                    checked: input.checked !== undefined ? input.checked : null,
+                    timestamp: Date.now()
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('input, textarea, select').forEach(function(input) {
+        input.addEventListener('focus', function () {
+            events.push({
+                type: 'input_focus',
+                data: {
+                    tag: input.tagName,
+                    id: input.id || null,
+                    name: input.name || null,
+                    timestamp: Date.now()
+                }
+            });
+        });
+        input.addEventListener('blur', function () {
+            events.push({
+                type: 'input_blur',
+                data: {
+                    tag: input.tagName,
+                    id: input.id || null,
+                    name: input.name || null,
+                    timestamp: Date.now()
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('*').forEach(function(el) {
+        el.addEventListener('mouseover', function () {
+            events.push({
+                type: 'mouseover',
+                data: {
+                    tag: el.tagName,
+                    id: el.id || null,
+                    classes: el.className || null,
+                    timestamp: Date.now()
+                }
+            });
+        });
+        el.addEventListener('mouseout', function () {
+            events.push({
+                type: 'mouseout',
+                data: {
+                    tag: el.tagName,
+                    id: el.id || null,
+                    classes: el.className || null,
+                    timestamp: Date.now()
+                }
+            });
+        });
+    });
+
     function sendEngagementData() {
         var now = Date.now();
         var timeOnPage = Math.round((now - startTime) / 1000);
