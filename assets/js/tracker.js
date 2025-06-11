@@ -1,4 +1,5 @@
 (function () {
+    console.log('Cognito tracker loaded');
     function generateSessionId() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -33,7 +34,7 @@
         if (percent > maxScroll) maxScroll = percent;
         events.push({
             type: 'scroll',
-            data: { percent: percent, maxScroll: maxScroll, timestamp: Date.now() }
+            data: { percent: percent, maxScroll: maxScroll, timestamp: Date.now(), localTime: new Date().toLocaleString(), localTime: new Date().toLocaleString()   }
         });
     });
 
@@ -55,7 +56,8 @@
                 text: target.innerText ? target.innerText.substring(0, 100) : null,
                 value: target.value || null,
                 href: target.href || null,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                localTime: new Date().toLocaleString() 
             }
         });
     });
@@ -66,7 +68,8 @@
                 type: 'video_play',
                 data: {
                     src: video.currentSrc,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString() 
                 }
             });
         });
@@ -76,7 +79,8 @@
                 type: 'video_pause',
                 data: {
                     src: video.currentSrc,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString() 
                 }
             });
         });
@@ -85,7 +89,8 @@
                 type: 'video_ended',
                 data: {
                     src: video.currentSrc,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString()
                 }
             });
         });
@@ -95,7 +100,8 @@
                 data: {
                     src: video.currentSrc,
                     currentTime: video.currentTime,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString()
                 }
             });
         });
@@ -108,7 +114,8 @@
                     action: form.action,
                     id: form.id || null,
                     classes: form.className || null,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString() 
                 }
             });
         });
@@ -127,7 +134,8 @@
                         type: input.type || null,
                         value: input.value || null,
                         checked: input.checked !== undefined ? input.checked : null,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        localTime: new Date().toLocaleString() 
                     }
                 });
             }
@@ -142,7 +150,8 @@
                     tag: input.tagName,
                     id: input.id || null,
                     name: input.name || null,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString() 
                 }
             });
         });
@@ -153,7 +162,8 @@
                     tag: input.tagName,
                     id: input.id || null,
                     name: input.name || null,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString() 
                 }
             });
         });
@@ -167,7 +177,8 @@
                     tag: el.tagName,
                     id: el.id || null,
                     classes: el.className || null,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString() 
                 }
             });
         });
@@ -178,7 +189,8 @@
                     tag: el.tagName,
                     id: el.id || null,
                     classes: el.className || null,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    localTime: new Date().toLocaleString() 
                 }
             });
         });

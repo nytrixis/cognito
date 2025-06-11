@@ -79,13 +79,81 @@ function cognito_enqueue_tracker() {
     }
 }
 
+add_action('admin_menu', 'cognito_register_admin_page');
+function cognito_register_admin_page() {
+    add_menu_page(
+        'Cognito Dashboard',
+        'Cognito Dashboard',
+        'manage_options',
+        'cognito-dashboard',
+        'cognito_render_admin_page',
+        'dashicons-chart-bar',
+        25
+    );
+}
+
+add_action('admin_enqueue_scripts', 'cognito_enqueue_admin_dashboard');
+function cognito_enqueue_admin_dashboard($hook) {
+    if ($hook !== 'toplevel_page_cognito-dashboard') {
+        return;
+    }
+    $dir = plugin_dir_path(__FILE__) . 'admin/dashboard/build/';
+    $url = plugin_dir_url(__FILE__) . 'admin/dashboard/build/';
+    $asset_file = $dir . 'index.asset.php';
+    if (file_exists($asset_file)) {
+        $asset = include $asset_file;
+        wp_enqueue_script(
+            'cognito-dashboard',
+            $url . 'index.js',
+            $asset['dependencies'],
+            $asset['version'],
+            true
+        );
+        wp_enqueue_style(
+            'cognito-dashboard',
+            $url . 'index.css',
+            [],
+            $asset['version']
+        );
+        wp_localize_script('cognito-dashboard', 'cognitoDashboard', [
+        'nonce' => wp_create_nonce('wp_rest')
+    ]);
+    }
+}
+
 add_action('rest_api_init', function () {
     register_rest_route('cognito/v1', '/track', array(
         'methods'  => 'POST',
         'callback' => 'cognito_handle_event_data',
-        'permission_callback' => '__return_true', 
+        'permission_callback' => function () {
+            return current_user_can('manage_options');
+        }
     ));
 });
+
+add_action('rest_api_init', function () {
+    register_rest_route('cognito/v1', '/events', array(
+        'methods'  => 'GET',
+        'callback' => 'cognito_get_events',
+        'permission_callback' => function () {
+            return current_user_can('manage_options');
+        }
+    ));
+});
+
+function cognito_get_events(WP_REST_Request $request) {
+    global $wpdb;
+    $table_events = $wpdb->prefix . 'cognito_events';
+    $results = $wpdb->get_results("SELECT * FROM $table_events ORDER BY event_id DESC LIMIT 100", ARRAY_A);
+    foreach ($results as &$row) {
+        $row['data'] = json_decode($row['data'], true);
+    }
+    return $results;
+}
+ 
+function cognito_render_admin_page() {
+    echo '<div id="cognito-dashboard-root"></div>';
+}
 
 function cognito_handle_event_data(WP_REST_Request $request) {
     global $wpdb;

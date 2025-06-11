@@ -1,0 +1,4 @@
+admin/dashboard/node_modules/
+build/
+dist/
+*.log
