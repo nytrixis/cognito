@@ -4,6 +4,10 @@ Cognito is a WordPress plugin that provides advanced analytics for reader engage
 
 ---
 
+![Cognito Dashboard Screenshot](./screenshot.png)
+
+---
+
 ## ✨ Features
 
 - **Dashboard**: Visualize sessions, events, engagement over time, and cognitive load per post/page.
