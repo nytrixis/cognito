@@ -125,9 +125,7 @@ add_action('rest_api_init', function () {
     register_rest_route('cognito/v1', '/track', array(
         'methods'  => 'POST',
         'callback' => 'cognito_handle_event_data',
-        'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+        'permission_callback' => '__return_true'
     ));
 });
 
@@ -135,9 +133,7 @@ add_action('rest_api_init', function () {
     register_rest_route('cognito/v1', '/events', array(
         'methods'  => 'GET',
         'callback' => 'cognito_get_events',
-        'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+        'permission_callback' => '__return_true'
     ));
 });
 
@@ -149,17 +145,62 @@ add_action('rest_api_init', function () {
     ]);
 });
 
+add_action('rest_api_init', function () {
+    register_rest_route('cognito/v1', '/heatmap', [
+        'methods' => 'GET',
+        'callback' => 'cognito_get_heatmap_events',
+        'permission_callback' => '__return_true'
+    ]);
+});
+
+function cognito_get_heatmap_events(WP_REST_Request $request) {
+    global $wpdb;
+    $post_id = intval($request->get_param('post_id'));
+    $table_events = $wpdb->prefix . 'cognito_events';
+    $table_sessions = $wpdb->prefix . 'cognito_sessions';
+    $session_ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT session_id FROM $table_sessions WHERE post_id = %d", $post_id
+    ));
+    if (empty($session_ids)) return [];
+
+    $in = implode(',', array_map(function() { return '%s'; }, $session_ids));
+    $event_types = ['mousemove', 'click', 'scroll'];
+    $event_in = implode(',', array_fill(0, count($event_types), '%s'));
+
+    $query = $wpdb->prepare(
+        "SELECT e.event_type, e.data
+         FROM $table_events e
+         WHERE e.session_id IN ($in)
+           AND e.event_type IN ($event_in)
+         ORDER BY e.event_id ASC",
+        array_merge($session_ids, $event_types)
+    );
+    $results = $wpdb->get_results($query, ARRAY_A);
+    foreach ($results as &$row) {
+        $row['data'] = json_decode($row['data'], true);
+    }
+    return $results;
+}
+
 function cognito_get_events(WP_REST_Request $request) {
     global $wpdb;
     $table_events = $wpdb->prefix . 'cognito_events';
     $table_sessions = $wpdb->prefix . 'cognito_sessions';
-    $results = $wpdb->get_results("
+    $post_id = $request->get_param('post_id');
+    $where = '';
+    $params = [];
+    if ($post_id) {
+        $where = 'WHERE s.post_id = %d';
+        $params[] = intval($post_id);
+    }
+    $sql = "
         SELECT e.*, s.post_id
         FROM $table_events e
         LEFT JOIN $table_sessions s ON e.session_id = s.session_id
+        $where
         ORDER BY e.event_id DESC
-        LIMIT 100
-    ", ARRAY_A);
+    ";
+    $results = $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A);
     foreach ($results as &$row) {
         $row['data'] = json_decode($row['data'], true);
     }
@@ -211,18 +252,9 @@ function cognito_handle_event_data(WP_REST_Request $request) {
         $wpdb->insert($table_events, array(
             'session_id' => $params['session_id'],
             'event_type' => sanitize_text_field($event['type']),
-            'timestamp'  => current_time('mysql'),
+            'timestamp'  => isset($event['data']['timestamp']) ? date('Y-m-d H:i:s', intval($event['data']['timestamp'])/1000) : current_time('mysql'),
             'data'       => wp_json_encode($event['data']),
         ));
-    }
-
-    foreach ($results as &$row) {
-        $row['data'] = json_decode($row['data'], true);
-        if (!empty($row['post_id'])) {
-            $row['post_title'] = get_the_title($row['post_id']);
-        } else {
-            $row['post_title'] = 'Unknown';
-        }
     }
 
     return array('success' => true);

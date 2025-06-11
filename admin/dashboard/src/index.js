@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './index.css';
 import Chart from 'chart.js/auto';
+import h337 from 'heatmap.js';
 
 const App = () => {
   const [events, setEvents] = useState([]);
@@ -8,20 +9,58 @@ const App = () => {
   const [selectedEventType, setSelectedEventType] = useState('');
   const [selectedPost, setSelectedPost] = useState('');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [heatmapData, setHeatmapData] = useState([]);
+  const heatmapContainerRef = useRef(null);
+
+  const points = heatmapData
+    .filter(ev => ev.data && typeof ev.data.x === 'number' && typeof ev.data.y === 'number')
+    .map(ev => ({
+      x: ev.data.x,
+      y: ev.data.y,
+      value: 1
+    }));
 
 
   useEffect(() => {
-    fetch('/wordpress/wp-json/cognito/v1/filteredEvents', {
-      headers: {
-        'X-WP-Nonce': window.cognitoDashboard.nonce
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
+  let url = '/wordpress/wp-json/cognito/v1/filteredEvents';
+  if (selectedPost) {
+    url += `?post_id=${selectedPost}`;
+  }
+  fetch(url, {
+    headers: {
+      'X-WP-Nonce': window.cognitoDashboard.nonce
+    }
+  })
+    .then(res => res.json())
+    .then(data => {
       setEvents(Array.isArray(data) ? data : []);
       setLoading(false);
     });
-  }, []);
+}, [selectedPost]);
+
+  useEffect(() => {
+    if (!selectedPost) return;
+    fetch(`/wordpress/wp-json/cognito/v1/heatmap?post_id=${selectedPost}`)
+      .then(res => res.json())
+      .then(data => setHeatmapData(Array.isArray(data) ? data : []));
+  }, [selectedPost]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!heatmapContainerRef.current) return;
+    heatmapContainerRef.current.innerHTML = '';
+    const heatmapInstance = h337.create({
+      container: heatmapContainerRef.current,
+      radius: 40,
+      maxOpacity: 0.6,
+      minOpacity: 0,
+      blur: 0.85,
+    });
+    heatmapInstance.setData({
+      max: 10,
+      data: points
+    });
+  }, [loading, points]);
 
   const chartRef = useRef(null);
   const filteredEvents = events.filter(ev => {
@@ -46,6 +85,20 @@ const App = () => {
     acc[ev.event_type] = (acc[ev.event_type] || 0) + 1;
     return acc;
   }, {});
+
+  const now = Date.now();
+  const fiveMinutesAgo = now - 5 * 60 * 1000;
+  const activeSessionIds = new Set(
+    filteredEvents
+      .filter(ev => {
+        if (!ev.timestamp) return false;
+        // Parse as UTC
+        const ts = ev.timestamp.replace(' ', 'T') + 'Z';
+        return new Date(ts).getTime() >= fiveMinutesAgo;
+      })
+      .map(ev => ev.session_id)
+  );
+  const activeUsers = activeSessionIds.size;
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -189,7 +242,7 @@ const App = () => {
               />
             </div>
           </div>
-          <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
             <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-cyan-400/40 font-mont">
               <span className="text-2xl font-bold text-cyan-100 drop-shadow">{totalSessions}</span>
               <span className="text-cyan-200 text-sm mt-1">Total Sessions</span>
@@ -201,6 +254,10 @@ const App = () => {
             <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-blue-400/40 font-mont">
               <span className="text-2xl font-bold text-blue-100 drop-shadow">{avgTimeOnPage}s</span>
               <span className="text-blue-200 text-sm mt-1">Avg. Time on Page</span>
+            </div>
+            <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-pink-400/40 font-mont">
+              <span className="text-2xl font-bold text-pink-100 drop-shadow">{activeUsers}</span>
+              <span className="text-pink-200 text-sm mt-1">Active Users (5 min)</span>
             </div>
           </div>
           <div className="w-full flex flex-col lg:flex-row justify-center gap-8 mb-8 items-stretch">
@@ -224,6 +281,19 @@ const App = () => {
                   </li>
                 ))}
               </ul>
+            </div>
+          </div>
+          <div className="w-full max-w-4xl mb-8">
+            {!selectedPost && (
+              <div className="mt-4 text-center text-cyan-300 text-lg font-semibold">
+                Please select a post to see heatmap.
+              </div>
+            )}
+            <div className="relative w-full h-[400px] bg-gray-900 rounded-2xl shadow-xl overflow-hidden border border-cyan-400/40">
+              <div ref={heatmapContainerRef} className="absolute inset-0 w-full h-full z-10" />
+              <div className="absolute inset-0 flex items-center justify-center z-0">
+                <span className="text-cyan-200 opacity-30">Heatmap Preview</span>
+              </div>
             </div>
           </div>
           <table className="min-w-full bg-white/10 rounded-lg shadow overflow-hidden border border-gray-700">

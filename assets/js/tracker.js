@@ -20,27 +20,42 @@
     var startTime = Date.now();
     var lastMouseMove = Date.now();
     var mouseMoves = 0;
+    let lastMouseEvent = 0;
+    let lastScrollEvent = 0;
+    const MOUSE_THROTTLE = 300; // ms
+    const SCROLL_THROTTLE = 300; // ms
 
-    // Track scroll depth
+    // Scroll (for heatmap)
     window.addEventListener('scroll', function () {
-        var scrollTop = window.scrollY || window.pageYOffset;
-        var docHeight = Math.max(
-            document.body.scrollHeight, document.documentElement.scrollHeight,
-            document.body.offsetHeight, document.documentElement.offsetHeight,
-            document.body.clientHeight, document.documentElement.clientHeight
-        );
-        var winHeight = window.innerHeight;
-        var percent = Math.round(((scrollTop + winHeight) / docHeight) * 100);
-        if (percent > maxScroll) maxScroll = percent;
-        events.push({
-            type: 'scroll',
-            data: { percent: percent, maxScroll: maxScroll, timestamp: Date.now(), localTime: new Date().toLocaleString(), localTime: new Date().toLocaleString()   }
-        });
+        const now = Date.now();
+        if (now - lastScrollEvent > SCROLL_THROTTLE) {
+            lastScrollEvent = now;
+            events.push({
+                type: 'scroll',
+                data: {
+                    scrollY: window.scrollY,
+                    viewportHeight: window.innerHeight,
+                    docHeight: document.documentElement.scrollHeight,
+                    timestamp: now
+                }
+            });
+        }
     });
 
-    window.addEventListener('mousemove', function () {
-        mouseMoves++;
-        lastMouseMove = Date.now();
+    // Mousemove (for heatmap)
+    window.addEventListener('mousemove', function (e) {
+        const now = Date.now();
+        if (now - lastMouseEvent > MOUSE_THROTTLE) {
+            lastMouseEvent = now;
+            events.push({
+                type: 'mousemove',
+                data: {
+                    x: e.clientX,
+                    y: e.clientY,
+                    timestamp: now
+                }
+            });
+        }
     });
 
     window.addEventListener('click', function (e) {
@@ -48,6 +63,8 @@
         events.push({
             type: 'click',
             data: {
+                x: e.clientX,
+                y: e.clientY,
                 tag: target.tagName,
                 id: target.id || null,
                 classes: target.className || null,
@@ -57,7 +74,7 @@
                 value: target.value || null,
                 href: target.href || null,
                 timestamp: Date.now(),
-                localTime: new Date().toLocaleString() 
+                localTime: new Date().toLocaleString()
             }
         });
     });
