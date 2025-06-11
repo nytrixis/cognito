@@ -194,6 +194,43 @@ const App = () => {
     return () => chartInstance.destroy();
   }, [filteredEvents]);
 
+  // Compute cognitive load per post
+  const cognitiveLoadPerPost = {};
+  const postSessions = {};
+  filteredEvents.forEach(ev => {
+    const post = ev.post_title || ev.post_id || 'Unknown';
+    const session = ev.session_id;
+    if (!cognitiveLoadPerPost[post]) cognitiveLoadPerPost[post] = [];
+    if (!postSessions[post]) postSessions[post] = {};
+    if (!postSessions[post][session]) postSessions[post][session] = {scrolls: [], time: 0, interactions: 0};
+
+    if (ev.event_type === 'scroll' && ev.data && typeof ev.data.percent === 'number') {
+      postSessions[post][session].scrolls.push(ev.data.percent);
+    }
+    if (ev.event_type === 'heartbeat' && ev.data && typeof ev.data.timeOnPage === 'number') {
+      postSessions[post][session].time = Math.max(postSessions[post][session].time, ev.data.timeOnPage);
+    }
+    if (['click', 'mousemove'].includes(ev.event_type)) {
+      postSessions[post][session].interactions += 1;
+    }
+  });
+
+  Object.entries(postSessions).forEach(([post, sessions]) => {
+    let totalScore = 0, count = 0;
+    Object.values(sessions).forEach(({scrolls, time, interactions}) => {
+      const avgScroll = scrolls.length ? scrolls.reduce((a, b) => a + b, 0) / scrolls.length : 0;
+      // Normalize: scroll (0-100), time (max 300s), interactions (max 50)
+      const scrollScore = Math.min(avgScroll, 100) / 100;
+      const timeScore = Math.min(time, 300) / 300;
+      const interactionScore = Math.min(interactions, 50) / 50;
+      // Weighted sum
+      const score = (scrollScore * 0.4 + timeScore * 0.3 + interactionScore * 0.3) * 100;
+      totalScore += score;
+      count++;
+    });
+    cognitiveLoadPerPost[post] = count ? Math.round(totalScore / count) : 0;
+  });
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-md font-mont">     
@@ -274,10 +311,29 @@ const App = () => {
             {/* Most Engaged Posts */}
             <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-gray-700 mb-8 flex-1 min-w-[250px] flex flex-col items-center h-full">
               <span className="text-lg font-semibold text-cyan-200 mb-2 block">Most Engaged Posts</span>
-              <ul className="flex-1 flex flex-col justify-center w-full">
+              <ul className="flex-1 flex flex-col justify-center w-full gap-4">
                 {topPosts.map(([post, count]) => (
-                  <li key={post} className="text-gray-200">
-                    <span className="font-bold text-cyan-300">{post}</span>: {count} filteredEvents
+                  <li key={post} className="text-gray-200 mb-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-cyan-300">{post}:</span>
+                        <span className="text-teal-200 text-sm">{count} events</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-300 font-semibold text-sm">Cognitive Load:</span>
+                        <span className="font-bold text-yellow-200">{cognitiveLoadPerPost[post] ?? 0}</span>
+                      </div>
+                      <div className="w-full bg-gray-800 rounded-full h-4 mt-1 border border-cyan-900/40 overflow-hidden">
+                        <div
+                          className="h-4 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${cognitiveLoadPerPost[post] ?? 0}%`,
+                            background: `linear-gradient(90deg, #fbbf24 0%, #06b6d4 100%)`,
+                            boxShadow: '0 0 8px #fbbf24, 0 0 4px #06b6d4'
+                          }}
+                        />
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
