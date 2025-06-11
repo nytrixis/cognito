@@ -5,36 +5,47 @@ import Chart from 'chart.js/auto';
 const App = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEventType, setSelectedEventType] = useState('');
+  const [selectedPost, setSelectedPost] = useState('');
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
+
 
   useEffect(() => {
-    fetch('/wordpress/wp-json/cognito/v1/events', {
+    fetch('/wordpress/wp-json/cognito/v1/filteredEvents', {
       headers: {
         'X-WP-Nonce': window.cognitoDashboard.nonce
       }
     })
       .then(res => res.json())
       .then(data => {
-        setEvents(data);
-        setLoading(false);
-      });
+      setEvents(Array.isArray(data) ? data : []);
+      setLoading(false);
+    });
   }, []);
 
-  const totalEvents = events.length;
-  const sessionIds = new Set(events.map(ev => ev.session_id));
+  const chartRef = useRef(null);
+  const filteredEvents = events.filter(ev => {
+    if (selectedEventType && ev.event_type !== selectedEventType) return false;
+    if (selectedPost && (ev.post_title || ev.post_id) !== selectedPost) return false;
+    if (dateRange.from && new Date(ev.timestamp) < new Date(dateRange.from)) return false;
+    if (dateRange.to && new Date(ev.timestamp) > new Date(dateRange.to)) return false;
+    return true;
+  });
+
+  const totalfilteredEvents = filteredEvents.length;
+  const sessionIds = new Set(filteredEvents.map(ev => ev.session_id));
   const totalSessions = sessionIds.size;
   const avgTimeOnPage = (() => {
-    const times = events
+    const times = filteredEvents
       .filter(ev => ev.event_type === 'heartbeat' && ev.data && ev.data.timeOnPage)
       .map(ev => ev.data.timeOnPage);
     if (!times.length) return 0;
     return Math.round(times.reduce((a, b) => a + b, 0) / times.length);
   })();
-  const eventTypeCounts = events.reduce((acc, ev) => {
+  const eventTypeCounts = filteredEvents.reduce((acc, ev) => {
     acc[ev.event_type] = (acc[ev.event_type] || 0) + 1;
     return acc;
   }, {});
-
-  const chartRef = useRef(null);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -68,10 +79,10 @@ const App = () => {
       }
     });
     return () => chartInstance.destroy();
-  }, [events]);
+  }, [filteredEvents]);
 
-  const eventsByHour = {};
-  events.forEach(ev => {
+  const filteredEventsByHour = {};
+  filteredEvents.forEach(ev => {
     if (!ev.timestamp) return;
     const localDate = new Date(ev.timestamp.replace(' ', 'T') + 'Z');
     const year = localDate.getFullYear();
@@ -79,15 +90,15 @@ const App = () => {
     const day = String(localDate.getDate()).padStart(2, '0');
     const hour = String(localDate.getHours()).padStart(2, '0');
     const hourLabel = `${year}-${month}-${day} ${hour}:00`;
-    eventsByHour[hourLabel] = (eventsByHour[hourLabel] || 0) + 1;
+    filteredEventsByHour[hourLabel] = (filteredEventsByHour[hourLabel] || 0) + 1;
   });
 
-  const lineLabels = Object.keys(eventsByHour).sort();
-  const lineData = lineLabels.map(label => eventsByHour[label]);
+  const lineLabels = Object.keys(filteredEventsByHour).sort();
+  const lineData = lineLabels.map(label => filteredEventsByHour[label]);
   const lineChartRef = useRef(null);
 
   const postEngagement = {};
-  events.forEach(ev => {
+  filteredEvents.forEach(ev => {
     const post = ev.post_title || ev.post_id || 'Unknown';
     postEngagement[post] = (postEngagement[post] || 0) + 1;
   });
@@ -128,24 +139,63 @@ const App = () => {
       }
     });
     return () => chartInstance.destroy();
-  }, [events]);
+  }, [filteredEvents]);
 
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-md font-mont">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-md font-mont">     
       <h1 className="text-4xl font-bold mb-4 mt-4 text-cyan-300 drop-shadow">Cognito Dashboard</h1>
       <p className="text-lg text-teal-200 mb-8">Your analytics dashboard is ready!</p>
       {loading ? (
-        <div className="text-gray-400">Loading events...</div>
+        <div className="text-gray-400">Loading Events...</div>
       ) : (
         <div className="w-full max-w-4xl">
+          <div className="w-full flex justify-center mb-8">
+            <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-gray-700 flex flex-wrap gap-4 items-center justify-center w-full max-w-4xl">
+              {/* Event Type Filter */}
+              <select
+                className="bg-gray-800 text-cyan-200 rounded px-3 py-2 focus:ring-2 focus:ring-cyan-400 transition"
+                value={selectedEventType}
+                onChange={e => setSelectedEventType(e.target.value)}
+              >
+                <option value="">All Event Types</option>
+                {Object.keys(eventTypeCounts).map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              {/* Post Filter */}
+              <select
+                className="bg-gray-800 text-cyan-200 rounded px-3 py-2 focus:ring-2 focus:ring-cyan-400 transition"
+                value={selectedPost}
+                onChange={e => setSelectedPost(e.target.value)}
+              >
+                <option value="">All Posts</option>
+                {Array.from(new Set(events.map(ev => ev.post_title || ev.post_id || 'Unknown'))).map(post => (
+                  <option key={post} value={post}>{post}</option>
+                ))}
+              </select>
+              {/* Date Range Filter */}
+              <input
+                type="date"
+                className="bg-gray-800 text-cyan-200 rounded px-3 py-2 focus:ring-2 focus:ring-cyan-400 transition"
+                value={dateRange.from}
+                onChange={e => setDateRange(r => ({ ...r, from: e.target.value }))}
+              />
+              <input
+                type="date"
+                className="bg-gray-800 text-cyan-200 rounded px-3 py-2 focus:ring-2 focus:ring-cyan-400 transition"
+                value={dateRange.to}
+                onChange={e => setDateRange(r => ({ ...r, to: e.target.value }))}
+              />
+            </div>
+          </div>
           <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
             <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-cyan-400/40 font-mont">
               <span className="text-2xl font-bold text-cyan-100 drop-shadow">{totalSessions}</span>
               <span className="text-cyan-200 text-sm mt-1">Total Sessions</span>
             </div>
             <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-teal-400/40 font-mont">
-              <span className="text-2xl font-bold text-teal-100 drop-shadow">{totalEvents}</span>
+              <span className="text-2xl font-bold text-teal-100 drop-shadow">{totalfilteredEvents}</span>
               <span className="text-teal-200 text-sm mt-1">Total Events</span>
             </div>
             <div className="bg-gray/40 backdrop-blur-lg rounded-2xl shadow-xl p-6 flex flex-col items-center border border-blue-400/40 font-mont">
@@ -170,7 +220,7 @@ const App = () => {
               <ul className="flex-1 flex flex-col justify-center w-full">
                 {topPosts.map(([post, count]) => (
                   <li key={post} className="text-gray-200">
-                    <span className="font-bold text-cyan-300">{post}</span>: {count} events
+                    <span className="font-bold text-cyan-300">{post}</span>: {count} filteredEvents
                   </li>
                 ))}
               </ul>
@@ -186,7 +236,7 @@ const App = () => {
               </tr>
             </thead>
             <tbody>
-              {events.map(ev => (
+              {filteredEvents.map(ev => (
                 <tr key={ev.event_id} className="border-b border-gray-800 last:border-none hover:bg-white/5 transition">
                   <td className="px-4 py-2 text-gray-100">{ev.event_id}</td>
                   <td className="px-4 py-2 text-teal-200">{ev.event_type}</td>

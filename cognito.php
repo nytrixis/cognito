@@ -141,6 +141,14 @@ add_action('rest_api_init', function () {
     ));
 });
 
+add_action('rest_api_init', function () {
+    register_rest_route('cognito/v1', '/filteredEvents', [
+        'methods' => 'GET',
+        'callback' => 'cognito_get_events',
+        'permission_callback' => '__return_true'
+    ]);
+});
+
 function cognito_get_events(WP_REST_Request $request) {
     global $wpdb;
     $table_events = $wpdb->prefix . 'cognito_events';
